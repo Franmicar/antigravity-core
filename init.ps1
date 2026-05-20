@@ -9,25 +9,48 @@ if (-not (Test-Path $TargetFolder)) {
     New-Item -ItemType Directory -Force -Path $TargetFolder | Out-Null
 }
 
+# La carpeta oculta .antigravity actúa como contenedor en el proyecto destino
 $AntigravityTarget = Join-Path $TargetFolder ".antigravity"
 
-# Crear estructura base
 Write-Host "Inicializando Antigravity Core en: $AntigravityTarget" -ForegroundColor Cyan
 New-Item -ItemType Directory -Force -Path $AntigravityTarget | Out-Null
 
-# Copiar System y Knowledge
-Write-Host "Copiando módulos 1-system y 2-knowledge..."
-Copy-Item -Path "1-system" -Destination $AntigravityTarget -Recurse -Force
-Copy-Item -Path "2-knowledge" -Destination $AntigravityTarget -Recurse -Force
+# Obtener la ruta de origen del script para poder ejecutarlo desde cualquier directorio
+$ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
+if ([string]::IsNullOrEmpty($ScriptDir)) { $ScriptDir = "." }
 
-# Crear Workspace local
-Write-Host "Generando 3-workspace local en blanco..."
-$Workspace = Join-Path $AntigravityTarget "3-workspace"
-New-Item -ItemType Directory -Force -Path "$Workspace\memory" | Out-Null
+# Copiar módulos Core: system, knowledge, skills
+Write-Host "Copiando módulos del sistema (system, knowledge, skills)..." -ForegroundColor Yellow
+Copy-Item -Path (Join-Path $ScriptDir "system") -Destination $AntigravityTarget -Recurse -Force
+Copy-Item -Path (Join-Path $ScriptDir "knowledge") -Destination $AntigravityTarget -Recurse -Force
+Copy-Item -Path (Join-Path $ScriptDir "skills") -Destination $AntigravityTarget -Recurse -Force
+
+# Generar Workspace local dinámico en blanco
+Write-Host "Generando workspace local de sesión..." -ForegroundColor Yellow
+$Workspace = Join-Path $AntigravityTarget "workspace"
+$Memory = Join-Path $Workspace "memory"
 $Artifacts = Join-Path $Workspace "artifacts"
+
+# Crear carpetas de memoria y entregables
+New-Item -ItemType Directory -Force -Path $Memory | Out-Null
 New-Item -ItemType Directory -Force -Path "$Artifacts\plans" | Out-Null
 New-Item -ItemType Directory -Force -Path "$Artifacts\reports" | Out-Null
 New-Item -ItemType Directory -Force -Path "$Artifacts\sessions" | Out-Null
+New-Item -ItemType Directory -Force -Path "$Artifacts\proposals" | Out-Null
 
-Write-Host "¡Antigravity Core instalado con éxito en tu proyecto!" -ForegroundColor Green
-Write-Host "Asegúrate de copiar el contenido de bootstrap.md en tu primer prompt con la IA." -ForegroundColor Yellow
+# Inicializar archivos de log y estado
+$LearningLogPath = Join-Path $Memory "learning_log.jsonl"
+if (-not (Test-Path $LearningLogPath)) {
+    New-Item -ItemType File -Path $LearningLogPath -Force | Out-Null
+}
+
+$ActiveContextPath = Join-Path $Memory "active_context.json"
+if (-not (Test-Path $ActiveContextPath)) {
+    Set-Content -Path $ActiveContextPath -Value "{}" -Force
+}
+
+# Inicializar placeholder de reglas locales para el proyecto
+$LocalRulesPath = Join-Path $AntigravityTarget "system\rules\local-rules.md"
+Write-Host "Instalación completada con éxito." -ForegroundColor Green
+Write-Host "Asegúrate de copiar el contenido de bootstrap.md en tu primer mensaje con la IA." -ForegroundColor Yellow
+Write-Host "Puedes personalizar las especificaciones locales del proyecto en: $LocalRulesPath" -ForegroundColor Cyan
